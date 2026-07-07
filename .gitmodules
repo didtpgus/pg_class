@@ -1,0 +1,6 @@
+[submodule "src/MORAI-ROS_morai_msgs"]
+	path = src/MORAI-ROS_morai_msgs
+	url = https://github.com/MORAI-Autonomous/MORAI-ROS_morai_msgs.git
+[submodule "src/velodyne"]
+	path = src/velodyne
+	url = https://github.com/ros-drivers/velodyne.git

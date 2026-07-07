@@ -1,0 +1,15 @@
+build/
+devel/
+install/
+log/
+logs/
+
+*.pyc
+__pycache__/
+.catkin_tools/
+
+.vscode/
+.idea/
+.claude/
+.codex/
+.agents/

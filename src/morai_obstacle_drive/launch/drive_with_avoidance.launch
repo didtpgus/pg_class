@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- ==========================================================================
+       QUICK-CHANGE PARAMS ONLY. Every other node param is baked into that node's
+       code default (rospy.get_param default == last-tuned value). To re-tune a
+       baked param, add it back to that node here or edit the script default.
+       ========================================================================== -->
+  <arg name="path_file" default="2021042015_양세현_c_track.txt"/>   <!-- track / global path -->
+  <arg name="base_frame" default="base_link"/>
+  <arg name="lidar_frame" default="velodyne"/>
+  <arg name="enable_lidar" default="true"/>
+  <arg name="enable_yolo" default="true"/>
+  <arg name="yolo_image_topic" default="/image_jpeg/compressed"/>
+  <arg name="yolo_model_path" default="$(find yolo)/models/best.pt"/>
+
+  <!-- Velodyne VLP-16 driver + pointcloud (publishes /velodyne_points) -->
+  <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
+
+  <!-- GPS-only count-based speed + IMU predict. Full estimator tuning is baked;
+       these 3 are the live knobs: sim_period/speed_scale = the speed calibration,
+       imu_fusion = GPS-only vs IMU-predict toggle. -->
+  <node pkg="morai_obstacle_drive" type="gpsimu_parser.py" name="gpsimu_parser" output="screen">
+    <param name="sim_period" value="0.0568"/>   <!-- sim s per GPS fix = THE calibration -->
+    <param name="speed_scale" value="1.0"/>     <!-- fine trim on top of sim_period -->
+    <param name="imu_fusion" value="true"/>     <!-- false = pure GPS-only -->
+  </node>
+
+  <!-- Unified TF tree: map -(/odom)-> odom -> base_link -> {gps, imu}. base_link IS
+       the GPS/rear-axle point (all offsets baked to 0); IMU sits 3 cm below it. -->
+  <node pkg="morai_obstacle_drive" type="tf_broadcaster.py" name="tf_broadcaster" output="screen">
+    <param name="imu_z" value="-0.03"/>   <!-- IMU 3 cm below GPS/rear-axle (mounting) -->
+  </node>
+
+  <!-- base_link -> velodyne / camera mounting (0.92 / 1.00 m forward). -->
+  <node pkg="tf" type="static_transform_publisher" name="base_to_lidar_tf"
+        args="0.92 0 0.22 0 0 0 $(arg base_frame) $(arg lidar_frame) 50"/>
+  <node pkg="tf" type="static_transform_publisher" name="base_to_camera_tf"
+        args="1.00 0 0.18 0 0 0 $(arg base_frame) camera 50"/>
+
+  <group if="$(arg enable_lidar)">
+    <node pkg="morai_obstacle_drive" type="lidar_obstacle_detector.py" name="lidar_obstacle_detector" output="screen"/>
+  </group>
+
+  <!-- Frenet lattice local path. Live knobs: avoidance reach (obstacles can sit in
+       the opposite/left lane -> look 4.35 m left vs 1.45 m right) and the obstacle
+       inflation box (obs_box_w/l). -->
+  <node pkg="morai_obstacle_drive" type="frenet_local_path.py" name="frenet_local_path" output="screen">
+    <param name="path_file" value="$(arg path_file)"/>
+    <param name="avoid_side" value="left"/>          <!-- left | right | both -->
+    <param name="avoid_lat_left" value="4.35"/>      <!-- lateral reach LEFT [m] -->
+    <param name="avoid_lat_right" value="1.45"/>     <!-- lateral reach RIGHT [m] -->
+    <param name="obs_box_w" value="2.0"/>            <!-- obstacle box width (lateral) [m] -->
+    <param name="obs_box_l" value="1.7"/>            <!-- obstacle box length (longitudinal) [m] -->
+  </node>
+
+  <!-- Pure pursuit. Live knobs: speed envelope + terminal-stop precision
+       (overspeed / downhill / catch-up / parking are all baked). -->
+  <node pkg="morai_obstacle_drive" type="pure_pursuit.py" name="pure_pursuit" output="screen">
+    <param name="max_speed_kph" value="18.0"/>        <!-- straight cruise cap -->
+    <param name="min_curve_speed_kph" value="15.0"/>  <!-- curve / floor speed -->
+    <param name="stop_tol" value="0.1"/>              <!-- m; within this of goal -> brake=1 latched -->
+  </node>
+
+  <!-- YOLO + traffic light (debug window off; all detection thresholds baked). -->
+  <group if="$(arg enable_yolo)">
+    <node pkg="morai_obstacle_drive" type="yolo_detection.py" name="yolo_detector" output="screen">
+      <param name="image_topic" value="$(arg yolo_image_topic)"/>
+      <param name="model_path" value="$(arg yolo_model_path)"/>
+    </node>
+    <node pkg="morai_obstacle_drive" type="traffic_light_control.py" name="traffic_light_control" output="screen"/>
+  </group>
+</launch>

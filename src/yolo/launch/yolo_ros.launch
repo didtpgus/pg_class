@@ -1,0 +1,10 @@
+<launch>
+    <arg name="debug" default="true"/>
+
+    <node name="yolo_detector" pkg="yolo" type="yolo_detection.py" output="screen">
+        <param name="image_topic" value="/image_jpeg/compressed"/>
+        <param name="model_path" value="$(find yolo)/models/best.pt"/>
+        
+        <param name="debug" value="$(arg debug)"/>
+    </node>
+</launch>

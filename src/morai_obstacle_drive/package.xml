@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>morai_obstacle_drive</name>
+  <version>0.1.0</version>
+  <description>MORAI path following with LiDAR obstacle-aware local path generation.</description>
+
+  <maintainer email="saehyun@example.com">saehyun</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>tf</depend>
+  <depend>morai_msgs</depend>
+  <depend>yolo</depend>
+
+  <export/>
+</package>
